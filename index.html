@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flip Counter</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<style>
+  *, *::after, *::before {
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 2.25rem;
+  }
+  
+  body {
+    background-color: #f2f1ed;
+    color: #de4848;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+  }
+  
+  .flip-card {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    box-shadow: 0 2px 3px 0 rgba(0, 0, 0, .2);
+    border-radius: .1em;
+  }
+  
+  .top,
+  .bottom,
+  .flip-card .top-flip,
+  .flip-card .bottom-flip {
+    height: .75em;
+    line-height: 1;
+    padding: .25em;
+    overflow: hidden;
+  }
+  
+  .top,
+  .flip-card .top-flip {
+    background-color: #f7f7f7;
+    border-top-right-radius: .1em;
+    border-top-left-radius: .1em;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .bottom,
+  .flip-card .bottom-flip {
+    background-color: white;
+    display: flex;
+    align-items: flex-end;
+    border-bottom-right-radius: .1em;
+    border-bottom-left-radius: .1em;
+  }
+  
+  .flip-card .top-flip {
+    position: absolute;
+    width: 100%;
+    animation: flip-top 250ms ease-in;
+    transform-origin: bottom;
+  }
+  
+  @keyframes flip-top {
+    100% {
+      transform: rotateX(90deg);
+    }
+  }
+  
+  .flip-card .bottom-flip {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    animation: flip-bottom 250ms ease-out 250ms;
+    transform-origin: top;
+    transform: rotateX(90deg);
+  }
+  
+  @keyframes flip-bottom {
+    100% {
+      transform: rotateX(0deg);
+    }
+  }
+  
+  .container {
+    display: flex;
+    gap: .5em;
+    justify-content: center;
+  }
+  
+  button {
+    margin-top: 20px;
+    font-size: 1rem;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+</style>
+<body>
+  <div class="container">
+    <div class="flip-card" data-hundreds>
+      <div class="top">0</div>
+      <div class="bottom">0</div>
+    </div>
+    <div class="flip-card" data-tens>
+      <div class="top">0</div>
+      <div class="bottom">0</div>
+    </div>
+    <div class="flip-card" data-ones>
+      <div class="top">0</div>
+      <div class="bottom">0</div>
+    </div>
+  </div>
+  <script>
+    let counter = 0;
+    let socket;
+
+    function connectWebSocket() {
+      socket = new WebSocket('wss://ltaxi.ziyosoft.uz/ws/live/users/');
+
+      socket.onopen = function (e) {
+        console.log("[open] Connection established");
+      };
+
+      socket.onmessage = function (event) {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Received data:", data);
+          if (data.increment == 1) {
+
+          }
+          if (data.count !== undefined) {
+            counter = data.count;
+            updateCounter(counter);
+          }
+        } catch (error) {
+          console.error("Error parsing message:", error);
+        }
+      };
+
+      socket.onclose = function (event) {
+        if (event.wasClean) {
+          console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else {
+          console.log('[close] Connection died');
+        }
+        setTimeout(connectWebSocket, 5000);
+      };
+
+      socket.onerror = function (event) {
+        console.error("WebSocket error observed:", event);
+        console.error("Ready state:", socket.readyState);
+        console.error("Error details:", event.error);
+      };
+    }
+
+    connectWebSocket();
+
+
+    function updateCounter(number) {
+      const hundreds = Math.floor(number / 100);
+      const tens = Math.floor((number % 100) / 10);
+      const ones = number % 10;
+      flip(document.querySelector("[data-hundreds]"), hundreds);
+      flip(document.querySelector("[data-tens]"), tens);
+      flip(document.querySelector("[data-ones]"), ones);
+    }
+
+    function flip(flipCard, newNumber) {
+      const topHalf = flipCard.querySelector(".top");
+      const startNumber = parseInt(topHalf.textContent) || 0;
+      if (newNumber === startNumber) return;
+
+      const bottomHalf = flipCard.querySelector(".bottom");
+      const topFlip = document.createElement("div");
+      topFlip.classList.add("top-flip");
+      const bottomFlip = document.createElement("div");
+      bottomFlip.classList.add("bottom-flip");
+
+      topHalf.textContent = startNumber;
+      bottomHalf.textContent = startNumber;
+      topFlip.textContent = startNumber;
+      bottomFlip.textContent = newNumber;
+
+      topFlip.addEventListener("animationstart", e => {
+        topHalf.textContent = newNumber;
+      });
+      topFlip.addEventListener("animationend", e => {
+        topFlip.remove();
+      });
+      bottomFlip.addEventListener("animationend", e => {
+        bottomHalf.textContent = newNumber;
+        bottomFlip.remove();
+      });
+      flipCard.append(topFlip, bottomFlip);
+      flipCard.classList.add('flipping'); // Add flipping class for animations
+      setTimeout(() => flipCard.classList.remove('flipping'), 500); // Remove class after animation
+    }
+  </script>
+</body>
+
+</html>
